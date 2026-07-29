@@ -1,33 +1,23 @@
 Name: kime
-Version: 3.1.1
-Release: 3
+Version: 3.2.0
+Release: 1
 License: GPLv3
 Summary: Korean IME
 Url: https://github.com/Riey/kime
 Source0: %{url}/archive/refs/tags/v%{version}.tar.gz
 
-# NOTE: Currently(3.0.2^git_673_33603e0) `kime.desktop` relies on `kime-xdg-autostart` to be in `/usr/bin` which is same as %%{_bindir} for now. However, restructuring is needed if this changes in the future. Write custom `kime.desktop` independent of source repository.
+# NOTE: Currently(3.2.0) the whole thing relies on meson by source repo.
 
 # hopefully noarch; not tested.
 
-# from README.md of kime github repository,
-# build dependencies(package name):
-#     cmake(cmake)
-#     libclang(clang-devel)
-#     cargo(cargo)
-#     pkg-config(pkgconf-pkg-config)
-# optional build dependencies:
-#     gtk3(gtk3-devel)
-#     gtk4(gtk4-devel)
-#     qtbase5-private(qt5-qtbase-private-devel)
-#     qtbase6-private(qt6-qtbase-private-devel)
-#     libdbus(dbus-devel)
-#     xcb(libxcb-devel)
-#     fontconfig(fontconfig-devel)
-#     freetype(freetype-devel)
+## Refer to <https://github.com/Riey/kime#dependencies>
+## to edit build requirements
+
 # BuildRequires: cmake
 BuildRequires: clang-devel
-# BuildRequires: cargo
+# BuildRequires: cargo # using rustup instead
+BuildRequires: meson
+BuildRequires: ninja-build
 BuildRequires: pkgconf-pkg-config
 BuildRequires: gtk3-devel
 BuildRequires: gtk4-devel
@@ -37,6 +27,7 @@ BuildRequires: dbus-devel
 BuildRequires: libxcb-devel
 BuildRequires: fontconfig-devel
 BuildRequires: freetype-devel
+BuildRequires: libxkbcommon-devel
 
 # check dbus, fontconfig, freetype, libxcb in the future.
 # optional runtime dependencies
@@ -54,7 +45,6 @@ Requires: im-chooser
 
 Conflicts: kime-git
 
-%define kime_out build/out
 %define kime_imsettings_conf kime-imsettings.conf
 
 %description
@@ -65,15 +55,20 @@ kime is a fast, lightweight, reliable and highly customizable input engine for K
 %autosetup
 
 %build
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.81.0 --profile default -y
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile default -y
 . "$HOME/.cargo/env"
-export RUSTUP_TOOLCHAIN=1.81.0
-
-# cherry picked from build.sh. will write custom build script if something breaks catastrophically.
-scripts/build.sh -ar
+%meson \
+	-Dgtk3=enabled \
+	-Dgtk4=enabled \
+	-Dqt5=enabled \
+	-Dqt6=enabled \
+	-Dcargo_profile=release \
+	-Dinstall_headers=true \
+	-Dinstall_docs=false
+%meson_build
 
 # custom im-chooser compatibility
-cat > %{kime_out}/%{kime_imsettings_conf} << EOF
+cat > %{kime_imsettings_conf} << EOF
 SHORT_DESC="kime"
 XIM=kime
 XIM_PROGRAM=%{_bindir}/kime-xim
@@ -83,27 +78,10 @@ AUXILIARY_PROGRAM=%{_bindir}/kime-indicator
 EOF
 
 %install
-install -Dm755 %{kime_out}/kime -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-xdg-autostart -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-check -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-indicator -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-candidate-window -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-xim -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-wayland -t %{buildroot}%{_bindir}
-
-install -Dm755 %{kime_out}/libkime_engine.so -t %{buildroot}%{_libdir}
-install -Dm755 %{kime_out}/libkime-gtk3.so %{buildroot}%{_libdir}/gtk-3.0/3.0.0/immodules/im-kime.so
-install -Dm755 %{kime_out}/libkime-gtk4.so %{buildroot}%{_libdir}/gtk-4.0/4.0.0/immodules/libim-kime.so
-install -Dm755 %{kime_out}/libkime-qt5.so %{buildroot}%{_libdir}/qt5/plugins/platforminputcontexts/libkimeplatforminputcontextplugin.so
-install -Dm755 %{kime_out}/libkime-qt6.so %{buildroot}%{_libdir}/qt6/plugins/platforminputcontexts/libkimeplatforminputcontextplugin.so
-
-install -Dm644 %{kime_out}/kime_engine.h -t %{buildroot}%{_includedir}
-install -Dm644 %{kime_out}/kime_engine.hpp -t %{buildroot}%{_includedir}
-
-# etc
-install -Dm644 %{kime_out}/%{kime_imsettings_conf} %{buildroot}%{_sysconfdir}/X11/xinit/xinput.d/kime.conf
-install -Dm644 %{kime_out}/kime.desktop -t %{buildroot}%{_datadir}/applications
-install -Dm644 %{kime_out}/icons/64x64/* -t %{buildroot}%{_datadir}/icons/hicolor/64x64/apps
+%meson_install
+## will not autostart by default
+rm -f %{buildroot}%{_sysconfdir}/xdg/autostart/kime.desktop
+install -Dm644 %{kime_imsettings_conf} %{buildroot}%{_sysconfdir}/X11/xinit/xinput.d/kime.conf
 
 %files
 %license LICENSE*
@@ -124,8 +102,8 @@ install -Dm644 %{kime_out}/icons/64x64/* -t %{buildroot}%{_datadir}/icons/hicolo
 %{_bindir}/kime-wayland
 
 %{_libdir}/libkime_engine.so
-%{_libdir}/gtk-3.0/3.0.0/immodules/im-kime.so
-%{_libdir}/gtk-4.0/4.0.0/immodules/libim-kime.so
+%{_libdir}/gtk-3.0/3.0.0/immodules/libim-kime.so
+%{_libdir}/gtk-4.0/4.0.0/immodules/libkime-gtk4.so
 %{_libdir}/qt5/plugins/platforminputcontexts/libkimeplatforminputcontextplugin.so
 %{_libdir}/qt6/plugins/platforminputcontexts/libkimeplatforminputcontextplugin.so
 
