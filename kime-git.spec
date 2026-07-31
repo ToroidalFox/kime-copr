@@ -26,7 +26,6 @@ Requires: im-chooser
 
 Conflicts: kime
 
-%define kime_out build/out
 %define kime_imsettings_conf kime-imsettings.conf
 
 %description
@@ -41,7 +40,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile d
 %meson 	-Dgtk3=enabled 	-Dgtk4=enabled 	-Dqt5=enabled 	-Dqt6=enabled 	-Dcargo_profile=release 	-Dinstall_headers=true 	-Dinstall_docs=false
 %meson_build
 
-cat > %{kime_out}/%{kime_imsettings_conf} << EOF
+cat > %{kime_imsettings_conf} << EOF
 SHORT_DESC="kime"
 XIM=kime
 XIM_PROGRAM=%{_bindir}/kime-xim
