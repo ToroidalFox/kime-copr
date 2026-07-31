@@ -75,6 +75,7 @@ XIM_PROGRAM=%{_bindir}/kime-xim
 GTK_IM_MODULE=kime
 QT_IM_MODULE=kime
 AUXILIARY_PROGRAM=%{_bindir}/kime-indicator
+IMSETTINGS_IGNORE_SESSION=*-wayland
 EOF
 
 %install
