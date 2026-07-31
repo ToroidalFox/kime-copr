@@ -1,15 +1,15 @@
 
 Name: kime-git
-Version: 3.1.1^git_714_0e846e1
+Version: 3.2.0^git_750_5c58caf
 Release: 1
 License: GPLv3
 Summary: Korean IME
 Url: https://github.com/Riey/kime
-Source0: %{url}/archive/0e846e1.tar.gz
+Source0: %{url}/archive/5c58caf.tar.gz
 
-# BuildRequires: cmake
 BuildRequires: clang-devel
-BuildRequires: cargo
+BuildRequires: meson
+BuildRequires: ninja-build
 BuildRequires: pkgconf-pkg-config
 BuildRequires: gtk3-devel
 BuildRequires: gtk4-devel
@@ -19,6 +19,7 @@ BuildRequires: dbus-devel
 BuildRequires: libxcb-devel
 BuildRequires: fontconfig-devel
 BuildRequires: freetype-devel
+BuildRequires: libxkbcommon-devel
 
 Requires: (google-noto-sans-cjk-vf-fonts or google-noto-sans-cjk-fonts)
 Requires: im-chooser
@@ -32,10 +33,13 @@ Conflicts: kime
 kime is a fast, lightweight, reliable and highly customizable input engine for Korean input.
 
 %prep
-%autosetup -n kime-0e846e1ed5f31f5d53e99f7a6a84d0391c9870f2
+%autosetup -n kime-5c58cafcad4b194354af69e4319c6b6f69ce7a29
 
 %build
-scripts/build.sh -ar
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile default -y
+. "$HOME/.cargo/env"
+%meson 	-Dgtk3=enabled 	-Dgtk4=enabled 	-Dqt5=enabled 	-Dqt6=enabled 	-Dcargo_profile=release 	-Dinstall_headers=true 	-Dinstall_docs=false
+%meson_build
 
 cat > %{kime_out}/%{kime_imsettings_conf} << EOF
 SHORT_DESC="kime"
@@ -48,27 +52,9 @@ IMSETTINGS_IGNORE_SESSION=*-wayland
 EOF
 
 %install
-install -Dm755 %{kime_out}/kime -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-xdg-autostart -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-check -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-indicator -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-candidate-window -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-xim -t %{buildroot}%{_bindir}
-install -Dm755 %{kime_out}/kime-wayland -t %{buildroot}%{_bindir}
-
-install -Dm755 %{kime_out}/libkime_engine.so -t %{buildroot}%{_libdir}
-install -Dm755 %{kime_out}/libkime-gtk3.so %{buildroot}%{_libdir}/gtk-3.0/3.0.0/immodules/im-kime.so
-install -Dm755 %{kime_out}/libkime-gtk4.so %{buildroot}%{_libdir}/gtk-4.0/4.0.0/immodules/libim-kime.so
-install -Dm755 %{kime_out}/libkime-qt5.so %{buildroot}%{_libdir}/qt5/plugins/platforminputcontexts/libkimeplatforminputcontextplugin.so
-install -Dm755 %{kime_out}/libkime-qt6.so %{buildroot}%{_libdir}/qt6/plugins/platforminputcontexts/libkimeplatforminputcontextplugin.so
-
-install -Dm644 %{kime_out}/kime_engine.h -t %{buildroot}%{_includedir}
-install -Dm644 %{kime_out}/kime_engine.hpp -t %{buildroot}%{_includedir}
-
-# etc
-install -Dm644 %{kime_out}/%{kime_imsettings_conf} %{buildroot}%{_sysconfdir}/X11/xinit/xinput.d/kime.conf
-install -Dm644 %{kime_out}/kime.desktop -t %{buildroot}%{_datadir}/applications
-install -Dm644 %{kime_out}/icons/64x64/* -t %{buildroot}%{_datadir}/icons/hicolor/64x64/apps
+%meson_install
+rm -f %{buildroot}%{_sysconfdir}/xdg/autostart/kime.desktop
+install -Dm644 %{kime_imsettings_conf} %{buildroot}%{_sysconfdir}/X11/xinit/xinput.d/kime.conf
 
 %files
 %license LICENSE*
@@ -89,8 +75,8 @@ install -Dm644 %{kime_out}/icons/64x64/* -t %{buildroot}%{_datadir}/icons/hicolo
 %{_bindir}/kime-wayland
 
 %{_libdir}/libkime_engine.so
-%{_libdir}/gtk-3.0/3.0.0/immodules/im-kime.so
-%{_libdir}/gtk-4.0/4.0.0/immodules/libim-kime.so
+%{_libdir}/gtk-3.0/3.0.0/immodules/libim-kime.so
+%{_libdir}/gtk-4.0/4.0.0/immodules/libkime-gtk4.so
 %{_libdir}/qt5/plugins/platforminputcontexts/libkimeplatforminputcontextplugin.so
 %{_libdir}/qt6/plugins/platforminputcontexts/libkimeplatforminputcontextplugin.so
 
